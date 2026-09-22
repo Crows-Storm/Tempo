@@ -88,6 +88,21 @@ xcodebuild -project Tempo.xcodeproj -scheme Tempo \
   -destination 'platform=macOS,arch=arm64' test
 ```
 
+## 打包成 DMG
+
+打 Release，再包成可拖进「应用程序」的磁盘映像：
+
+```sh
+chmod +x scripts/make-dmg.sh
+./scripts/make-dmg.sh
+```
+
+成品在 `build/dmg/Tempo-1.0.0.dmg`（版本号跟随 `CFBundleShortVersionString`）。双击打开：左边是 **Tempo**，右边是 **Applications**。把应用拖进文件夹，再推出磁盘。
+
+当前是 **ad-hoc 签名**（`CODE_SIGN_IDENTITY = "-"`）。磁盘映像里**没有** Apple 开发者姓名、Team ID、Apple ID。别人打开时会出现「无法验证开发者」，在应用上右键选「打开」即可。
+
+若用 Developer ID 去公证，反而会把**你的身份**写进签名，并把校验哈希上传给 Apple。不想公开开发者身份就不要走那条路。
+
 ## 快捷键
 
 | 操作 | 快捷键 |

@@ -84,6 +84,9 @@ coverage/
 profile.coverage
 TestResults/
 
+# Disk images produced locally
+*.dmg
+
 # Fastlane
 fastlane/report.xml
 fastlane/Preview.html

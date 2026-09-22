@@ -88,6 +88,21 @@ xcodebuild -project Tempo.xcodeproj -scheme Tempo \
   -destination 'platform=macOS,arch=arm64' test
 ```
 
+## Package a DMG
+
+Build a Release app and wrap it in a drag-to-Applications disk image:
+
+```sh
+chmod +x scripts/make-dmg.sh
+./scripts/make-dmg.sh
+```
+
+The image is written to `build/dmg/Tempo-1.0.0.dmg` (version follows `CFBundleShortVersionString`). Double-click it: **Tempo** is on the left, **Applications** on the right. Drag the app onto the folder, then eject.
+
+This project uses **ad-hoc signing** (`CODE_SIGN_IDENTITY = "-"`). The disk image does not contain an Apple Developer name, Team ID, or Apple ID. Recipients will see Gatekeeper’s unidentified-developer warning and can right-click the app and choose **Open**.
+
+Notarizing with a Developer ID would attach *your* identity to the binary and upload a hash to Apple. Skip that if you want the opposite of a public developer identity.
+
 ## Keyboard shortcuts
 
 | Action | Shortcut |

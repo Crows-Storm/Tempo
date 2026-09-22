@@ -1,0 +1,91 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Xcode — build products and user state
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.xcresult
+timeline.xctimeline
+playground.xcworkspace
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.pbxuser
+!default.pbxuser
+*.xcuserdatad
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+
+# Indexing / Instruments
+*.trace
+Index.noindex/
+ModuleCache.noindex/
+
+# Local agent, editor, and IDE state (not part of the product)
+.agents/
+.cursor/
+.omc/
+.cache/
+.claude/
+.codex/
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*~
+skills-lock.json
+
+# Secrets and credentials — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+*.mobileprovision
+*.provisionprofile
+secrets/
+keystore/
+wallet/
+
+# Logs and coverage
+*.log
+coverage/
+*.gcno
+*.gcda
+profile.coverage
+TestResults/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+fastlane/screenshots/**/*.png

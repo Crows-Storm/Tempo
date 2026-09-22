@@ -1,0 +1,32 @@
+{
+  "fill" : {
+    "solid" : "extended-srgb:0.94510,0.95686,0.97255,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "hidden" : false,
+          "image-name" : "Tempo-icon.png",
+          "name" : "Tempo"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+
+    ],
+    "squares" : [
+      "macOS"
+    ]
+  }
+}

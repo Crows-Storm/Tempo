@@ -285,7 +285,11 @@
         }
       }
     },
+    "App names still record without this. Window titles need Accessibility. Tempo asks once when you start a focus; after a refusal, use this button." : {
+
+    },
     "App names still record. Allow Accessibility, then quit Tempo once for window titles." : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -987,6 +991,9 @@
           }
         }
       }
+    },
+    "Enable" : {
+
     },
     "End" : {
 
@@ -2329,6 +2336,7 @@
       }
     },
     "Open Accessibility Settings" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2371,6 +2379,9 @@
           }
         }
       }
+    },
+    "Open System Settings" : {
+
     },
     "Open Tasks" : {
       "localizations" : {
@@ -3274,6 +3285,9 @@
           }
         }
       }
+    },
+    "Tempo asks once when a session ends. After a refusal, use this button to open System Settings." : {
+
     },
     "Tempo could not open its library. This session is temporary." : {
       "localizations" : {

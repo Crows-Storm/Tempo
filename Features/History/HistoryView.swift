@@ -241,15 +241,6 @@ struct SessionDetail: View {
                     appLegend
                 }
                 AttentionStrip(focused: focused, distracted: distracted)
-                if !session.titles.isEmpty {
-                    VStack(alignment: .leading, spacing: TempoSpacing.xs) {
-                        Text("Window titles")
-                            .font(.headline)
-                        ForEach(session.titles.prefix(12)) { title in
-                            LabeledContent(title.title, value: TempoFormat.minutesValue(title.seconds))
-                        }
-                    }
-                }
                 SessionSankey(diagram: sankey)
             }
             .padding(TempoSpacing.lg)

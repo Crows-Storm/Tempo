@@ -24,6 +24,31 @@ Tempo is a native macOS productivity app. The pomodoro clock, task boards, sessi
 
 It is built by **[Crows-Storm](https://github.com/Crows-Storm)** as a clean-room native rewrite inspired by [Pomodoro Logger](https://github.com/zxch3n/PomodoroLogger). Tempo is not a fork, does not reuse that project’s Electron UI or GPL source, and ships under a different license.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/overview.png" alt="Overview">
+</p>
+<p align="center"><em>Overview — today, next card, boards, and recent sessions</em></p>
+
+<p align="center">
+  <img src="docs/screenshots/focus.png" width="48%" alt="Focus">
+  <img src="docs/screenshots/focus-immersive.png" width="48%" alt="Immersive focus">
+</p>
+<p align="center"><em>Focus timer, and an immersive session with the selected card</em></p>
+
+<p align="center">
+  <img src="docs/screenshots/boards.png" width="48%" alt="Boards">
+  <img src="docs/screenshots/kanban.png" width="48%" alt="Kanban">
+</p>
+<p align="center"><em>Board list with archive, and a kanban of cards</em></p>
+
+<p align="center">
+  <img src="docs/screenshots/history.png" width="48%" alt="History">
+  <img src="docs/screenshots/statistics.png" width="48%" alt="Statistics">
+</p>
+<p align="center"><em>History calendar with app flow, and weekly statistics</em></p>
+
 ## Features
 
 **Focus**
@@ -146,6 +171,7 @@ Features/            Overview, Focus, Tasks, History, Statistics, Settings, menu
 Infrastructure/      SwiftData, activity probe, macOS chrome, notifications
 Shared/              Design system, localization
 TempoTests/          XCTest coverage for timer, import, charts, and session rules
+docs/screenshots/    README product shots
 scripts/             Icon Composer asset helper
 ```
 

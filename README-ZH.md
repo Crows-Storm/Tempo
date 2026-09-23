@@ -24,6 +24,31 @@ Tempo 是原生 macOS 效率应用。番茄钟、任务看板、会话历史和�
 
 由 **[Crows-Storm](https://github.com/Crows-Storm)** 开发。能力上向 [Pomodoro Logger](https://github.com/zxch3n/PomodoroLogger) 致敬，但是独立的洁净室原生实现：不是 fork，不复用其 Electron 界面或 GPL 源码，许可证也不同。
 
+## 截图
+
+<p align="center">
+  <img src="docs/screenshots/overview.png" alt="总览">
+</p>
+<p align="center"><em>总览：今日、下一张卡片、看板与最近会话</em></p>
+
+<p align="center">
+  <img src="docs/screenshots/focus.png" width="48%" alt="专注">
+  <img src="docs/screenshots/focus-immersive.png" width="48%" alt="沉浸专注">
+</p>
+<p align="center"><em>专注计时，以及绑定卡片后的沉浸式会话</em></p>
+
+<p align="center">
+  <img src="docs/screenshots/boards.png" width="48%" alt="看板列表">
+  <img src="docs/screenshots/kanban.png" width="48%" alt="看板">
+</p>
+<p align="center"><em>看板列表（含归档）与卡片看板</em></p>
+
+<p align="center">
+  <img src="docs/screenshots/history.png" width="48%" alt="历史">
+  <img src="docs/screenshots/statistics.png" width="48%" alt="统计">
+</p>
+<p align="center"><em>历史日历与应用流向，以及按周统计</em></p>
+
 ## 功能
 
 **专注**
@@ -146,6 +171,7 @@ Features/            总览、专注、任务、历史、统计、设置、菜�
 Infrastructure/      SwiftData、活动探测、macOS 外壳、通知
 Shared/              设计系统、本地化
 TempoTests/          计时、导入、图表与会话规则的 XCTest
+docs/screenshots/    README 产品截图
 scripts/             Icon Composer 资源脚本
 ```
 

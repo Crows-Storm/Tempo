@@ -212,6 +212,7 @@ private enum SMLaunch {
 
 private struct FocusPane: View {
     @Bindable var model: AppModel
+    @State private var accessibilityOn = false
 
     var body: some View {
         Form {
@@ -233,15 +234,15 @@ private struct FocusPane: View {
                     }
                 }
                 LabeledContent("Window titles") {
-                    if FrontmostProbe.isTrusted {
+                    if accessibilityOn {
                         Text("On")
                     } else {
-                        Button("Open Accessibility Settings") {
-                            FrontmostProbe.openAccessibilitySettings()
+                        Button(model.settings.askedAccessibility ? "Open System Settings" : "Enable") {
+                            model.enableAccessibilityFromSettings()
                         }
                     }
                 }
-                Text("App names still record. Allow Accessibility, then quit Tempo once for window titles.")
+                Text("App names still record without this. Window titles need Accessibility. Tempo asks once when you start a focus; after a refusal, use this button.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Suggest a board when a focus ends without one", isOn: $model.settings.suggestBoard)
@@ -274,6 +275,10 @@ private struct FocusPane: View {
             }
         }
         .settingsPaneChrome()
+        .task { accessibilityOn = FrontmostProbe.isTrusted }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            accessibilityOn = FrontmostProbe.isTrusted
+        }
     }
 
     private func durationSlider(
@@ -376,6 +381,7 @@ private struct LanguagePane: View {
 
 private struct NotificationsPane: View {
     @Bindable var model: AppModel
+    @State private var granted = false
 
     var body: some View {
         Form {
@@ -384,9 +390,21 @@ private struct NotificationsPane: View {
                     .toggleStyle(.switch)
                 Toggle("Play a sound when a session ends", isOn: $model.settings.soundEnabled)
                     .toggleStyle(.switch)
+                if model.settings.notificationsEnabled, !granted {
+                    Button(model.settings.askedNotifications ? "Open System Settings" : "Enable") {
+                        model.enableNotificationsFromSettings()
+                    }
+                    Text("Tempo asks once when a session ends. After a refusal, use this button to open System Settings.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .settingsPaneChrome()
+        .task { granted = await SessionNotifier.isGranted() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { granted = await SessionNotifier.isGranted() }
+        }
     }
 }
 

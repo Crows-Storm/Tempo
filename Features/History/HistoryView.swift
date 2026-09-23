@@ -9,9 +9,9 @@ struct HistoryView: View {
     var body: some View {
         HSplitView {
             browser
-                .frame(minWidth: 300, idealWidth: 340, maxWidth: 420)
+                .frame(minWidth: 320, idealWidth: 360, maxWidth: 420, maxHeight: .infinity)
             detail
-                .frame(minWidth: 380)
+                .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
         .navigationTitle("History")
         .tempoSearchable(text: $model.searchText, nonce: model.searchFocusNonce)
@@ -43,7 +43,10 @@ struct HistoryView: View {
                 sessions
             }
             .padding(TempoSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(.background)
     }
 
     private var sessions: some View {
@@ -127,6 +130,7 @@ struct HistoryView: View {
                 systemImage: "clock",
                 description: Text("Each session is a picture of where attention went.")
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -206,7 +210,11 @@ struct SessionDetail: View {
                 VStack(alignment: .leading, spacing: TempoSpacing.xs) {
                     Text(session.start.formatted(date: .complete, time: .shortened))
                         .font(.title2)
-                    HStack(spacing: TempoSpacing.lg) {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 140), spacing: TempoSpacing.md, alignment: .leading)],
+                        alignment: .leading,
+                        spacing: TempoSpacing.sm
+                    ) {
                         LabeledContent("Focus time", value: TempoFormat.minutesValue(session.seconds))
                         if let boardName {
                             LabeledContent("Board", value: boardName)
@@ -259,7 +267,11 @@ struct SessionDetail: View {
         let apps = Dictionary(grouping: intervals, by: \.app)
             .map { AppSlice(name: $0.key, seconds: $0.value.reduce(0) { $0 + $1.duration }) }
             .sorted { $0.seconds > $1.seconds }
-        return HStack(spacing: TempoSpacing.md) {
+        return LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 88), spacing: TempoSpacing.md, alignment: .leading)],
+            alignment: .leading,
+            spacing: TempoSpacing.xs
+        ) {
             ForEach(apps.prefix(6)) { app in
                 HStack(spacing: 6) {
                     RoundedRectangle(cornerRadius: 2, style: .continuous)

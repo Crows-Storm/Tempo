@@ -892,3 +892,32 @@ struct PomodoroTallyTests {
         #expect(tally.month >= tally.week)
     }
 }
+
+struct PermissionAskTests {
+    @Test func promptsOnlyOnceUntilGranted() {
+        #expect(PermissionAsk.shouldShowSystemPrompt(didAsk: false, isGranted: false))
+        #expect(!PermissionAsk.shouldShowSystemPrompt(didAsk: true, isGranted: false))
+        #expect(!PermissionAsk.shouldShowSystemPrompt(didAsk: false, isGranted: true))
+        #expect(!PermissionAsk.shouldShowSystemPrompt(didAsk: true, isGranted: true))
+    }
+
+    @Test func settingsOpensSystemSettingsAfterDenial() {
+        #expect(PermissionAsk.settingsAction(didAsk: false, isGranted: false) == .askSystem)
+        #expect(PermissionAsk.settingsAction(didAsk: true, isGranted: false) == .openSystemSettings)
+        #expect(PermissionAsk.settingsAction(didAsk: true, isGranted: true) == .none)
+        #expect(PermissionAsk.settingsAction(didAsk: false, isGranted: true) == .none)
+    }
+
+    @Test func loadsLegacySettingsWithoutPermissionFlags() throws {
+        let json = """
+        {"focusMinutes":30,"shortBreakMinutes":5,"longBreakMinutes":15,"longBreakInterval":4,"monitorInterval":2,"confirmDeleteCard":true,"notificationsEnabled":true,"soundEnabled":true,"suggestBoard":true,"appearance":"dark","language":"zh-Hans","distractionRules":[],"welcomed":true}
+        """.data(using: .utf8)!
+        let settings = try JSONDecoder().decode(AppSettings.self, from: json)
+        #expect(settings.focusMinutes == 30)
+        #expect(settings.welcomed)
+        #expect(settings.appearance == .dark)
+        #expect(!settings.askedAccessibility)
+        #expect(!settings.askedNotifications)
+    }
+}
+

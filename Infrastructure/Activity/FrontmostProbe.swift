@@ -18,6 +18,12 @@ enum FrontmostProbe {
         trustedWithoutPrompt()
     }
 
+    @discardableResult
+    static func promptTrust() -> Bool {
+        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        return AXIsProcessTrustedWithOptions(options)
+    }
+
     static func capture() -> Snapshot? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
         if app.bundleIdentifier == Bundle.main.bundleIdentifier { return nil }

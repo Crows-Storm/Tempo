@@ -252,7 +252,7 @@ struct MonthCalendar: View {
                 .disabled(!canGoForward)
                 .accessibilityLabel(Text("Next Month"))
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 6) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 28), spacing: 6), count: 7), spacing: 6) {
                 ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
                     Text(symbol)
                         .font(.caption)
@@ -264,6 +264,7 @@ struct MonthCalendar: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var weekdaySymbols: [String] {

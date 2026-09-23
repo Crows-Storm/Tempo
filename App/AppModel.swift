@@ -99,6 +99,10 @@ final class AppModel {
         }
         Task { await self.importLegacyIfNeeded() }
         startClockWatch()
+        if clock.phase == .focus, clock.runState == .running {
+            askAccessibilityIfNeeded()
+            startSampling()
+        }
     }
 
     init(stack: TempoStack) {
@@ -141,7 +145,36 @@ final class AppModel {
         clock.save()
         if clock.phase == .focus, clock.runState == .running {
             section = .focus
+            askAccessibilityIfNeeded()
             startSampling()
+        }
+    }
+
+    func enableAccessibilityFromSettings() {
+        if FrontmostProbe.isTrusted { return }
+        switch PermissionAsk.settingsAction(didAsk: settings.askedAccessibility, isGranted: false) {
+        case .askSystem:
+            askAccessibilityIfNeeded()
+        case .openSystemSettings:
+            FrontmostProbe.openAccessibilitySettings()
+        case .none:
+            break
+        }
+    }
+
+    func enableNotificationsFromSettings() {
+        Task { @MainActor in
+            let granted = await SessionNotifier.isGranted()
+            switch PermissionAsk.settingsAction(didAsk: settings.askedNotifications, isGranted: granted) {
+            case .askSystem:
+                var asked = settings.askedNotifications
+                _ = await SessionNotifier.requestIfNeeded(didAsk: &asked)
+                rememberNotificationAsk(asked)
+            case .openSystemSettings:
+                SessionNotifier.openSystemSettings()
+            case .none:
+                break
+            }
         }
     }
 
@@ -149,6 +182,24 @@ final class AppModel {
         clock.pause(at: .now, durations: durations)
         clock.save()
         stopSampling()
+    }
+
+    private func askAccessibilityIfNeeded() {
+        let granted = FrontmostProbe.isTrusted
+        guard PermissionAsk.shouldShowSystemPrompt(didAsk: settings.askedAccessibility, isGranted: granted) else {
+            return
+        }
+        var next = settings
+        next.askedAccessibility = true
+        _ = FrontmostProbe.promptTrust()
+        settings = next
+    }
+
+    private func rememberNotificationAsk(_ asked: Bool) {
+        guard asked != settings.askedNotifications else { return }
+        var next = settings
+        next.askedNotifications = asked
+        settings = next
     }
 
     func stop() {
@@ -718,12 +769,15 @@ final class AppModel {
 
     private func notify(_ title: String, body: String) {
         Task {
+            var asked = settings.askedNotifications
             let allowed = await SessionNotifier.deliver(
                 enabled: settings.notificationsEnabled,
                 title: title,
                 body: body,
-                playSound: settings.soundEnabled
+                playSound: settings.soundEnabled,
+                didAsk: &asked
             )
+            rememberNotificationAsk(asked)
             if !allowed, settings.soundEnabled {
                 NSSound(named: NSSound.Name("Glass"))?.play()
             }

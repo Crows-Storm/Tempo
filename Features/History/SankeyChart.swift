@@ -13,7 +13,9 @@ struct SessionSankey: View {
                     .foregroundStyle(TempoColor.secondary)
             } else {
                 SankeyCanvas(diagram: chart)
+                    .frame(maxWidth: .infinity)
                     .frame(height: height(for: chart))
+                    .clipped()
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Text("Attention flow"))
                     .accessibilityValue(Text(summary(chart)))

@@ -19,6 +19,12 @@ struct SessionSankey: View {
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(Text("Attention flow"))
                     .accessibilityValue(Text(summary(chart)))
+                if !chart.nodes.contains(where: { $0.column == 1 }) {
+                    Text("No window titles. Allow Accessibility in Settings to record the front window.")
+                        .font(.caption)
+                        .foregroundStyle(TempoColor.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -41,47 +47,77 @@ struct SessionSankey: View {
 private struct SankeyCanvas: View {
     var diagram: SankeyDiagram
     @Environment(\.colorSchemeContrast) private var contrast
+    @State private var hoverPoint: CGPoint?
 
     var body: some View {
-        Canvas { context, size in
-            let placed = SankeyLayout.place(diagram, in: size)
-            for link in placed.links {
-                var path = Path()
-                let mid = (link.x0 + link.x1) / 2
-                path.move(to: CGPoint(x: link.x0, y: link.y0))
-                path.addCurve(
-                    to: CGPoint(x: link.x1, y: link.y1),
-                    control1: CGPoint(x: mid, y: link.y0),
-                    control2: CGPoint(x: mid, y: link.y1)
-                )
-                path.addLine(to: CGPoint(x: link.x1, y: link.y1 + link.h1))
-                path.addCurve(
-                    to: CGPoint(x: link.x0, y: link.y0 + link.h0),
-                    control1: CGPoint(x: mid, y: link.y1 + link.h1),
-                    control2: CGPoint(x: mid, y: link.y0 + link.h0)
-                )
-                path.closeSubpath()
-                context.fill(path, with: .color(color(for: link.colorKey).opacity(0.42)))
+        GeometryReader { geo in
+            let placed = SankeyLayout.place(diagram, in: geo.size)
+            let hit = hoverPoint.flatMap {
+                SankeyFocus.hit(at: $0, nodes: placed.nodes, links: placed.links)
             }
-            for node in placed.nodes {
-                let rounded = Path(roundedRect: node.frame, cornerRadius: 3, style: .continuous)
-                context.fill(rounded, with: .color(color(for: node)))
-                if contrast == .increased {
-                    context.stroke(rounded, with: .color(TempoColor.secondary), lineWidth: 0.5)
+            let keep = hit.map { SankeyFocus.relatedIDs(to: $0, links: placed.links) }
+            Canvas { context, size in
+                let drawn = size == geo.size ? placed : SankeyLayout.place(diagram, in: size)
+                draw(context: &context, placed: drawn, keep: keep)
+            }
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                switch phase {
+                case let .active(point):
+                    hoverPoint = point
+                case .ended:
+                    hoverPoint = nil
                 }
-                let resolved = context.resolve(
-                    Text(node.label)
+            }
+            .overlay(alignment: .bottomLeading) {
+                if let hit {
+                    Text("\(hit.label) · \(TempoFormat.minutesValue(hit.seconds))")
                         .font(.caption)
-                        .foregroundStyle(TempoColor.secondary)
-                )
-                if node.column == 2 {
-                    context.draw(resolved, at: CGPoint(x: node.frame.maxX + 8, y: node.frame.midY), anchor: .leading)
-                } else {
-                    context.draw(resolved, at: CGPoint(x: node.frame.minX - 8, y: node.frame.midY), anchor: .trailing)
+                        .foregroundStyle(TempoColor.label)
+                        .lineLimit(2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .padding(8)
+                        .allowsHitTesting(false)
                 }
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func draw(
+        context: inout GraphicsContext,
+        placed: (nodes: [SankeyPlacedNode], links: [SankeyPlacedLink]),
+        keep: Set<String>?
+    ) {
+        let dimming = keep != nil
+        for link in placed.links {
+            let on = keep?.contains(link.id) ?? true
+            let path = Path(SankeyFocus.ribbonPath(link))
+            context.fill(
+                path,
+                with: .color(color(for: link.colorKey).opacity(on ? (dimming ? 0.78 : 0.42) : 0.08))
+            )
+        }
+        for node in placed.nodes {
+            let on = keep?.contains(node.id) ?? true
+            let rounded = Path(roundedRect: node.frame, cornerRadius: 3, style: .continuous)
+            context.fill(rounded, with: .color(color(for: node).opacity(on ? 1 : 0.18)))
+            if contrast == .increased {
+                context.stroke(rounded, with: .color(TempoColor.secondary), lineWidth: 0.5)
+            }
+            let resolved = context.resolve(
+                Text(node.label)
+                    .font(.caption.weight(on && dimming ? .semibold : .regular))
+                    .foregroundStyle(on ? TempoColor.label : TempoColor.secondary.opacity(0.45))
+            )
+            if node.column == 0 {
+                context.draw(resolved, at: CGPoint(x: node.frame.minX - 8, y: node.frame.midY), anchor: .trailing)
+            } else {
+                context.draw(resolved, at: CGPoint(x: node.frame.maxX + 8, y: node.frame.midY), anchor: .leading)
+            }
+        }
     }
 
     private func color(for node: SankeyPlacedNode) -> Color {

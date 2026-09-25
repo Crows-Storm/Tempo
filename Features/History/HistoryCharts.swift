@@ -77,6 +77,7 @@ struct PomodoroLaneChart: View {
     var length: TimeInterval
     var height: CGFloat = 36
     var showsAxis: Bool = false
+    var accessibilityTitle: LocalizedStringKey = "This session"
 
     var body: some View {
         let domain = max(1, length / 60)
@@ -104,7 +105,7 @@ struct PomodoroLaneChart: View {
         }
         .frame(height: height)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Text("This session"))
+        .accessibilityLabel(Text(accessibilityTitle))
     }
 }
 

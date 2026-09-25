@@ -28,6 +28,22 @@ enum FocusLane {
         return fromApps(session)
     }
 
+    static func concatenate(_ parts: [(session: SessionFact, intervals: [FocusInterval])]) -> (intervals: [FocusInterval], length: TimeInterval) {
+        let ordered = parts.sorted { $0.session.start < $1.session.start }
+        var offset: TimeInterval = 0
+        var result: [FocusInterval] = []
+        for part in ordered {
+            for interval in part.intervals {
+                var next = interval
+                next.id = "\(part.session.id)-\(interval.id)"
+                next.start += offset
+                result.append(next)
+            }
+            offset += max(1, part.session.seconds)
+        }
+        return (result, offset)
+    }
+
     static func focusedSeconds(_ intervals: [FocusInterval]) -> TimeInterval {
         intervals.filter { !$0.distracted }.reduce(0) { $0 + $1.duration }
     }
@@ -42,7 +58,9 @@ enum FocusLane {
         fallback: TimeInterval,
         length: TimeInterval
     ) -> [FocusInterval] {
-        let sorted = samples.sorted { $0.capturedAt < $1.capturedAt }
+        let sorted = samples
+            .filter { !SystemChrome.isIgnored(appName: $0.appName, bundleID: $0.bundleID) }
+            .sorted { $0.capturedAt < $1.capturedAt }
         guard let origin = sorted.first?.capturedAt else { return [] }
         var pieces: [FocusInterval] = []
         for (index, sample) in sorted.enumerated() {
@@ -71,7 +89,7 @@ enum FocusLane {
     }
 
     private static func fromApps(_ session: SessionFact) -> [FocusInterval] {
-        let apps = session.apps.filter { $0.seconds > 0 }
+        let apps = session.apps.filter { $0.seconds > 0 && !SystemChrome.isIgnored(appName: $0.name) }
         let length = max(1, session.seconds)
         guard !apps.isEmpty else {
             return [

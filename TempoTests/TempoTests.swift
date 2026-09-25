@@ -293,6 +293,27 @@ struct CardDraftSaveTests {
         #expect(model.fetchCards(listID: list.id).count == before)
         #expect(model.cardDraft != nil)
     }
+
+    @MainActor
+    @Test func toggleCardTaskWritesCheckedMarkdown() throws {
+        let model = AppModel(stack: try TempoStore.memory())
+        model.createBoard(name: "Board")
+        let list = try #require(model.fetchLists(boardID: model.selectedBoardID ?? "").first { $0.role == .inProgress } ?? model.fetchLists(boardID: model.selectedBoardID ?? "").first)
+        model.cardDraft = CardDraft(
+            id: "task-card",
+            existingID: nil,
+            listID: list.id,
+            title: "Multithreading",
+            notes: "- [ ] What is thread?\n- [ ] How many implementations are there?",
+            estimatedHours: 1
+        )
+        model.saveDraft()
+        model.toggleCardTask(id: "task-card", at: 0)
+        let card = try #require(model.fetchCard("task-card"))
+        #expect(card.notes == "- [x] What is thread?\n- [ ] How many implementations are there?")
+        model.toggleCardTask(id: "task-card", at: 0)
+        #expect(model.fetchCard("task-card")?.notes == "- [ ] What is thread?\n- [ ] How many implementations are there?")
+    }
 }
 
 struct ListRoleTests {
@@ -617,6 +638,39 @@ struct MarkdownPreviewTests {
     }
 }
 
+struct MarkdownTasksTests {
+    @Test func checksAndUnchecksTheNthItem() {
+        let source = "- [ ] a\n- [x] b\n- [ ] c"
+        #expect(MarkdownTasks.toggle(in: source, at: 0) == "- [x] a\n- [x] b\n- [ ] c")
+        #expect(MarkdownTasks.toggle(in: source, at: 1) == "- [ ] a\n- [ ] b\n- [ ] c")
+        #expect(MarkdownTasks.toggle(in: source, at: 2) == "- [ ] a\n- [x] b\n- [x] c")
+    }
+
+    @Test func skipsFencedCodeAndRegularBullets() {
+        let source = """
+        ```
+        - [ ] no
+        ```
+        - plain
+        - [ ] yes
+        """
+        #expect(MarkdownTasks.toggle(in: source, at: 0).contains("- [x] yes"))
+        #expect(MarkdownTasks.toggle(in: source, at: 0).contains("- [ ] no"))
+        #expect(MarkdownTasks.toggle(in: source, at: 0).contains("- plain"))
+    }
+
+    @Test func keepsIndentAndNormalizesCheckedMark() {
+        #expect(MarkdownTasks.toggle(in: "  - [X] nested", at: 0) == "  - [ ] nested")
+        #expect(MarkdownTasks.toggle(in: "* [ ] star", at: 0) == "* [x] star")
+        #expect(MarkdownTasks.toggle(in: "1. [ ] numbered", at: 0) == "1. [x] numbered")
+    }
+
+    @Test func outOfRangeLeavesSourceUnchanged() {
+        #expect(MarkdownTasks.toggle(in: "- [ ] a", at: 3) == "- [ ] a")
+        #expect(MarkdownTasks.toggle(in: "- [ ] a", at: -1) == "- [ ] a")
+    }
+}
+
 struct MenuBarIconTests {
     @Test func signatureBucketsProgressAndMinutes() {
         let running = MenuBarIcon.signature(
@@ -742,6 +796,48 @@ struct SankeyFlowTests {
         #expect(diagram.links.contains { !$0.distracted && $0.target == SankeyFlow.focusedID })
     }
 
+    @Test func skipsLockScreenChrome() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let samples = [
+            ActivitySample(id: 1, sessionID: "s", capturedAt: start, appName: "Xcode", windowTitle: "App.swift", bundleID: "dev.apple.xcode"),
+            ActivitySample(id: 2, sessionID: "s", capturedAt: start.addingTimeInterval(10), appName: "loginwindow", windowTitle: "", bundleID: "com.apple.loginwindow")
+        ]
+        let diagram = SankeyFlow.make(samples: samples, rules: [], fallbackInterval: 2)
+        #expect(!diagram.nodes.contains { $0.label == "loginwindow" })
+        #expect(diagram.nodes.contains { $0.label == "Xcode" })
+        #expect(diagram.nodes.contains { $0.column == 1 && $0.label == "App.swift" })
+    }
+
+    @Test func emptyWindowTitlesOccupyTheMiddleColumn() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let samples = [
+            ActivitySample(id: 1, sessionID: "s", capturedAt: start, appName: "Xcode", windowTitle: "", bundleID: "dev.apple.xcode"),
+            ActivitySample(id: 2, sessionID: "s", capturedAt: start.addingTimeInterval(10), appName: "Xcode", windowTitle: "   ", bundleID: "dev.apple.xcode")
+        ]
+        let diagram = SankeyFlow.make(samples: samples, rules: [], fallbackInterval: 2)
+        let untitled = String(localized: "Untitled")
+        #expect(diagram.nodes.contains { $0.column == 1 && $0.label == untitled })
+        #expect(!diagram.links.contains { $0.source.hasPrefix("app-") && ($0.target == SankeyFlow.focusedID || $0.target == SankeyFlow.distractedID) })
+        #expect(diagram.links.contains { $0.source == "app-Xcode" && $0.target == "title-\(untitled)" })
+        #expect(diagram.links.contains { $0.source == "title-\(untitled)" && $0.target == SankeyFlow.focusedID })
+    }
+
+    @Test func mixedTitlesRouteEmptyThroughUntitled() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let samples = [
+            ActivitySample(id: 1, sessionID: "s", capturedAt: start, appName: "Xcode", windowTitle: "App.swift", bundleID: "dev.apple.xcode"),
+            ActivitySample(id: 2, sessionID: "s", capturedAt: start.addingTimeInterval(10), appName: "Safari", windowTitle: "", bundleID: "com.apple.Safari"),
+            ActivitySample(id: 3, sessionID: "s", capturedAt: start.addingTimeInterval(20), appName: "Safari", windowTitle: "", bundleID: "com.apple.Safari")
+        ]
+        let diagram = SankeyFlow.make(samples: samples, rules: [], fallbackInterval: 2)
+        let untitled = String(localized: "Untitled")
+        #expect(diagram.nodes.contains { $0.column == 1 && $0.label == "App.swift" })
+        #expect(diagram.nodes.contains { $0.column == 1 && $0.label == untitled })
+        #expect(diagram.links.contains { $0.source == "app-Xcode" && $0.target == "title-App.swift" })
+        #expect(diagram.links.contains { $0.source == "app-Safari" && $0.target == "title-\(untitled)" })
+        #expect(!diagram.links.contains { $0.source == "app-Safari" && $0.target == SankeyFlow.focusedID })
+    }
+
     @Test func compactedKeepsTheLargestTitles() {
         let intervals = (0..<12).map { index in
             FocusInterval(
@@ -773,6 +869,69 @@ struct SankeyLayoutTests {
         #expect(placed.nodes.contains { $0.column == 2 })
         #expect(!placed.links.isEmpty)
         #expect(placed.nodes.allSatisfy { $0.frame.height >= 1 })
+    }
+
+    @Test func emptyTitlesOccupyTheMiddleColumn() {
+        let intervals = [
+            FocusInterval(id: "1", start: 0, duration: 20, app: "Xcode", title: "", distracted: false)
+        ]
+        let diagram = SankeyFlow.make(intervals: intervals)
+        let placed = SankeyLayout.place(diagram, in: CGSize(width: 640, height: 280))
+        #expect(placed.nodes.contains { $0.column == 0 })
+        #expect(placed.nodes.contains { $0.column == 1 && $0.label == String(localized: "Untitled") })
+        #expect(placed.nodes.contains { $0.column == 2 })
+        #expect(placed.links.contains { $0.sourceLabel == "Xcode" && $0.targetLabel == String(localized: "Untitled") })
+        #expect(!placed.links.contains { $0.sourceLabel == "Xcode" && $0.targetLabel == String(localized: "Focused") })
+    }
+}
+
+struct SankeyFocusTests {
+    @Test func hoveringAnAppKeepsItsTitlesAndDropsOtherApps() {
+        let diagram = SankeyFlow.make(intervals: [
+            FocusInterval(id: "1", start: 0, duration: 20, app: "Xcode", title: "App.swift", distracted: false),
+            FocusInterval(id: "2", start: 20, duration: 10, app: "Mail", title: "Inbox", distracted: true)
+        ])
+        let placed = SankeyLayout.place(diagram, in: CGSize(width: 640, height: 280))
+        let keep = SankeyFocus.relatedIDs(
+            to: .node(id: "app-Xcode", label: "Xcode", seconds: 20),
+            links: placed.links
+        )
+        #expect(keep.contains("app-Xcode"))
+        #expect(keep.contains("title-App.swift"))
+        #expect(keep.contains(SankeyFlow.focusedID))
+        #expect(!keep.contains("app-Mail"))
+        #expect(!keep.contains("title-Inbox"))
+    }
+
+    @Test func hoveringATitleKeepsConnectedAppsOnly() {
+        let diagram = SankeyFlow.make(intervals: [
+            FocusInterval(id: "1", start: 0, duration: 20, app: "Xcode", title: "App.swift", distracted: false),
+            FocusInterval(id: "2", start: 20, duration: 10, app: "Mail", title: "Inbox", distracted: true)
+        ])
+        let placed = SankeyLayout.place(diagram, in: CGSize(width: 640, height: 280))
+        let keep = SankeyFocus.relatedIDs(
+            to: .node(id: "title-Inbox", label: "Inbox", seconds: 10),
+            links: placed.links
+        )
+        #expect(keep.contains("app-Mail"))
+        #expect(keep.contains("title-Inbox"))
+        #expect(keep.contains(SankeyFlow.distractedID))
+        #expect(!keep.contains("app-Xcode"))
+        #expect(!keep.contains("title-App.swift"))
+    }
+
+    @Test func nodeHitFrameIncludesTheLabel() {
+        let node = SankeyPlacedNode(
+            id: "app-Xcode",
+            label: "Xcode",
+            column: 0,
+            seconds: 10,
+            frame: CGRect(x: 112, y: 10, width: 14, height: 40)
+        )
+        let frame = SankeyFocus.hitFrame(for: node)
+        #expect(frame.contains(CGPoint(x: 40, y: 30)))
+        #expect(frame.contains(CGPoint(x: 118, y: 30)))
+        #expect(!frame.contains(CGPoint(x: 118, y: 80)))
     }
 }
 
@@ -808,6 +967,79 @@ struct FocusLaneTests {
         #expect(intervals[1].app == "Mail")
         #expect(intervals[1].distracted)
         #expect(abs(FocusLane.focusedSeconds(intervals) - 20) < 0.01)
+    }
+
+    @Test func concatenatesSessionsEndToEnd() {
+        let first = SessionFact(
+            id: "a",
+            start: Date(timeIntervalSince1970: 1_700_000_000),
+            seconds: 25,
+            boardID: nil,
+            rotten: false,
+            counts: true,
+            efficiency: nil,
+            primaryApp: "Xcode",
+            apps: [],
+            titles: []
+        )
+        let second = SessionFact(
+            id: "b",
+            start: Date(timeIntervalSince1970: 1_700_001_800),
+            seconds: 10,
+            boardID: nil,
+            rotten: false,
+            counts: true,
+            efficiency: nil,
+            primaryApp: "Mail",
+            apps: [],
+            titles: []
+        )
+        let combined = FocusLane.concatenate([
+            (
+                session: second,
+                intervals: [FocusInterval(id: "m", start: 0, duration: 10, app: "Mail", title: "Inbox", distracted: true)]
+            ),
+            (
+                session: first,
+                intervals: [FocusInterval(id: "x", start: 0, duration: 25, app: "Xcode", title: "App.swift", distracted: false)]
+            )
+        ])
+        #expect(combined.length == 35)
+        #expect(combined.intervals.count == 2)
+        #expect(combined.intervals[0].app == "Xcode")
+        #expect(combined.intervals[0].start == 0)
+        #expect(combined.intervals[1].app == "Mail")
+        #expect(combined.intervals[1].start == 25)
+        #expect(combined.intervals[1].id.hasPrefix("b-"))
+    }
+
+    @Test func skipsLockScreenChrome() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let samples = [
+            ActivitySample(id: 1, sessionID: "s", capturedAt: start, appName: "IntelliJ IDEA", windowTitle: "App.kt", bundleID: "com.jetbrains.intellij"),
+            ActivitySample(id: 2, sessionID: "s", capturedAt: start.addingTimeInterval(10), appName: "loginwindow", windowTitle: "", bundleID: "com.apple.loginwindow"),
+            ActivitySample(id: 3, sessionID: "s", capturedAt: start.addingTimeInterval(20), appName: "loginwindow", windowTitle: "", bundleID: "com.apple.loginwindow")
+        ]
+        let session = SessionFact(
+            id: "s",
+            start: start,
+            seconds: 30,
+            boardID: nil,
+            rotten: false,
+            counts: true,
+            efficiency: nil,
+            primaryApp: "loginwindow",
+            apps: [AppSlice(name: "loginwindow", seconds: 20)],
+            titles: []
+        )
+        let intervals = FocusLane.make(
+            samples: samples,
+            session: session,
+            rules: [],
+            fallback: 2
+        )
+        #expect(!intervals.contains { $0.app == "loginwindow" })
+        #expect(intervals.contains { $0.app == "IntelliJ IDEA" })
     }
 
     @Test func fallsBackToAppSlicesWhenSamplesAreMissing() {
@@ -918,6 +1150,22 @@ struct PermissionAskTests {
         #expect(settings.appearance == .dark)
         #expect(!settings.askedAccessibility)
         #expect(!settings.askedNotifications)
+        #expect(!settings.askedScreenRecording)
+    }
+
+    @Test func treatsANewBinaryAsNotYetAsked() {
+        #expect(!PermissionAsk.didAskForCurrentBinary(didAsk: true, storedPath: "/old.app", currentPath: "/new.app"))
+        #expect(!PermissionAsk.didAskForCurrentBinary(didAsk: true, storedPath: "", currentPath: "/new.app"))
+        #expect(PermissionAsk.didAskForCurrentBinary(didAsk: true, storedPath: "/app", currentPath: "/app"))
+        #expect(!PermissionAsk.didAskForCurrentBinary(didAsk: false, storedPath: "/app", currentPath: "/app"))
+    }
+}
+
+struct SystemChromeTests {
+    @Test func ignoresLoginWindowAndKeepsRealApps() {
+        #expect(SystemChrome.isIgnored(appName: "loginwindow", bundleID: "com.apple.loginwindow"))
+        #expect(SystemChrome.isIgnored(appName: "loginwindow"))
+        #expect(!SystemChrome.isIgnored(appName: "IntelliJ IDEA", bundleID: "com.jetbrains.intellij"))
     }
 }
 

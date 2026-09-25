@@ -90,6 +90,13 @@ actor ActivityLog {
         for index in 1..<samples.count {
             let delta = min(120, max(0, samples[index].capturedAt.timeIntervalSince(samples[index - 1].capturedAt)))
             let previous = samples[index - 1]
+            if SystemChrome.isIgnored(appName: previous.appName, bundleID: previous.bundleID) {
+                if samples[index].appName != last {
+                    switches += 1
+                    last = samples[index].appName
+                }
+                continue
+            }
             appSeconds[previous.appName, default: 0] += delta
             if !previous.windowTitle.isEmpty {
                 titleSeconds[previous.windowTitle, default: 0] += delta

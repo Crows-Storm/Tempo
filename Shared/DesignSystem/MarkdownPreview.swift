@@ -40,15 +40,18 @@ struct MarkdownPreview: View {
     var source: String
     var lineLimit: Int?
     var compact: Bool = false
+    var onToggleTask: ((Int) -> Void)?
 
     var body: some View {
+        let blocks = Self.blocks(from: source)
+        let taskIndices = Self.taskIndices(in: blocks)
         let content = VStack(alignment: .leading, spacing: compact ? TempoSpacing.xxs : TempoSpacing.xs) {
-            ForEach(Array(Self.blocks(from: source).enumerated()), id: \.offset) { _, block in
-                blockView(block)
+            ForEach(Array(blocks.enumerated()), id: \.offset) { offset, block in
+                blockView(block, taskIndices: taskIndices[offset])
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: onToggleTask == nil ? .combine : .contain)
 
         if let lineLimit {
             content
@@ -60,7 +63,7 @@ struct MarkdownPreview: View {
     }
 
     @ViewBuilder
-    private func blockView(_ block: MarkdownBlock) -> some View {
+    private func blockView(_ block: MarkdownBlock, taskIndices: [Int?]) -> some View {
         switch block {
         case let .heading(level, text):
             styledText(resolved(text, heading: level))
@@ -75,9 +78,9 @@ struct MarkdownPreview: View {
             }
         case let .list(ordered, items):
             VStack(alignment: .leading, spacing: compact ? 2 : 4) {
-                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                ForEach(Array(items.enumerated()), id: \.offset) { offset, item in
                     HStack(alignment: .firstTextBaseline, spacing: TempoSpacing.xs) {
-                        listMarker(item, ordered: ordered)
+                        listMarker(item, ordered: ordered, taskIndex: taskIndices.indices.contains(offset) ? taskIndices[offset] : nil)
                         styledText(resolved(item.text))
                     }
                 }
@@ -111,11 +114,27 @@ struct MarkdownPreview: View {
     }
 
     @ViewBuilder
-    private func listMarker(_ item: MarkdownBlock.ListItem, ordered: Bool) -> some View {
+    private func listMarker(_ item: MarkdownBlock.ListItem, ordered: Bool, taskIndex: Int?) -> some View {
         if let checked = item.checked {
-            Image(systemName: checked ? "checkmark.square.fill" : "square")
+            let icon = Image(systemName: checked ? "checkmark.square.fill" : "square")
                 .foregroundStyle(checked ? TempoColor.info : TempoColor.secondary)
-                .accessibilityLabel(Text(checked ? "Completed" : "Incomplete"))
+            if let onToggleTask, let taskIndex {
+                icon
+                    .frame(minWidth: 16, minHeight: 16)
+                    .contentShape(Rectangle())
+                    .highPriorityGesture(TapGesture().onEnded {
+                        onToggleTask(taskIndex)
+                    })
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel(Text(checked ? "Completed" : "Incomplete"))
+                    .accessibilityHint(Text(checked ? "Marks the item incomplete." : "Marks the item complete."))
+                    .accessibilityAction {
+                        onToggleTask(taskIndex)
+                    }
+            } else {
+                icon
+                    .accessibilityLabel(Text(checked ? "Completed" : "Incomplete"))
+            }
         } else if ordered {
             Text("\(item.ordinal).")
                 .font(compact ? .callout : .body)
@@ -130,6 +149,19 @@ struct MarkdownPreview: View {
 
     private func resolved(_ text: AttributedString, heading: Int? = nil) -> AttributedString {
         Self.resolved(text, compact: compact, heading: heading)
+    }
+
+    private static func taskIndices(in blocks: [MarkdownBlock]) -> [[Int?]] {
+        var next = 0
+        return blocks.map { block in
+            guard case let .list(_, items) = block else { return [] }
+            return items.map { item in
+                guard item.checked != nil else { return nil }
+                let index = next
+                next += 1
+                return index
+            }
+        }
     }
 
     static func blocks(from source: String) -> [MarkdownBlock] {

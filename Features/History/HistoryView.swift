@@ -96,7 +96,7 @@ struct HistoryView: View {
                 length: session.seconds,
                 height: 22
             )
-            Text(session.primaryApp ?? String(localized: "Focus"))
+            Text(subtitleApp(session))
                 .font(.caption)
                 .foregroundStyle(TempoColor.secondary)
                 .lineLimit(1)
@@ -183,6 +183,16 @@ struct HistoryView: View {
         if model.selectedSessionID == nil {
             model.selectedSessionID = scopedSessions.first?.id
         }
+    }
+
+    private func subtitleApp(_ session: SessionFact) -> String {
+        if let name = session.primaryApp, !SystemChrome.isIgnored(appName: name) {
+            return name
+        }
+        if let name = session.apps.first(where: { !SystemChrome.isIgnored(appName: $0.name) })?.name {
+            return name
+        }
+        return session.primaryApp ?? String(localized: "Focus")
     }
 
     private func loadDetailSamples() async {

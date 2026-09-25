@@ -47,6 +47,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     var welcomed: Bool = false
     var askedAccessibility: Bool = false
     var askedNotifications: Bool = false
+    var askedScreenRecording: Bool = false
+    var accessibilityBinaryPath: String = ""
 
     static let storageKey = "tempo.settings"
 
@@ -83,7 +85,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case focusMinutes, shortBreakMinutes, longBreakMinutes, longBreakInterval
         case monitorInterval, confirmDeleteCard, notificationsEnabled, soundEnabled
         case suggestBoard, appearance, language, distractionRules, welcomed
-        case askedAccessibility, askedNotifications
+        case askedAccessibility, askedNotifications, askedScreenRecording, accessibilityBinaryPath
     }
 
     init(
@@ -101,7 +103,9 @@ struct AppSettings: Codable, Equatable, Sendable {
         distractionRules: [DistractionRule] = DistractionRule.presets,
         welcomed: Bool = false,
         askedAccessibility: Bool = false,
-        askedNotifications: Bool = false
+        askedNotifications: Bool = false,
+        askedScreenRecording: Bool = false,
+        accessibilityBinaryPath: String = ""
     ) {
         self.focusMinutes = focusMinutes
         self.shortBreakMinutes = shortBreakMinutes
@@ -118,6 +122,8 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.welcomed = welcomed
         self.askedAccessibility = askedAccessibility
         self.askedNotifications = askedNotifications
+        self.askedScreenRecording = askedScreenRecording
+        self.accessibilityBinaryPath = accessibilityBinaryPath
     }
 
     init(from decoder: Decoder) throws {
@@ -138,5 +144,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         welcomed = try container.decodeIfPresent(Bool.self, forKey: .welcomed) ?? fallback.welcomed
         askedAccessibility = try container.decodeIfPresent(Bool.self, forKey: .askedAccessibility) ?? false
         askedNotifications = try container.decodeIfPresent(Bool.self, forKey: .askedNotifications) ?? false
+        askedScreenRecording = try container.decodeIfPresent(Bool.self, forKey: .askedScreenRecording) ?? false
+        accessibilityBinaryPath = try container.decodeIfPresent(String.self, forKey: .accessibilityBinaryPath) ?? ""
     }
 }

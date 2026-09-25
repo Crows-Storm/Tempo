@@ -36,6 +36,11 @@ for arg in "$@"; do
 done
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
+  # Icon Composer .icon JSON-only edits are often skipped by incremental actool.
+  find "$ROOT/App/AppIcon.icon" -exec touch {} \; 2>/dev/null || true
+  rm -f "$DERIVED/Build/Products/$CONFIGURATION/$APP_NAME/Contents/Resources/AppIcon.icns"
+  rm -f "$DERIVED/Build/Products/$CONFIGURATION/$APP_NAME/Contents/Resources/Assets.car"
+
   # Ad-hoc sign only. Do not inject get-task-allow (a debug entitlement).
   xcodebuild \
     -project "$PROJECT" \

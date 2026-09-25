@@ -120,7 +120,9 @@ private struct FocusCardDetail: View {
                         Text("No notes")
                             .foregroundStyle(TempoColor.secondary)
                     } else {
-                        MarkdownPreview(source: card.notes)
+                        MarkdownPreview(source: card.notes) { index in
+                            model.toggleCardTask(id: card.id, at: index)
+                        }
                     }
                 }
                 .padding(TempoSpacing.md)

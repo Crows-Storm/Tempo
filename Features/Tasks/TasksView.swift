@@ -352,58 +352,13 @@ struct TasksView: View {
     }
 
     private func cardRow(_ card: CardRecord) -> some View {
-        let focusMinutes = model.settings.focusMinutes
-        let done = CardEffort.donePomodoros(
-            sessionIDsJSON: card.sessionIDsJSON,
-            actualHours: card.actualHours,
-            focusMinutes: focusMinutes
+        BoardCardRow(
+            card: card,
+            focusMinutes: model.settings.focusMinutes,
+            onEdit: { edit(card) },
+            onDelete: { requestDelete(card) },
+            onToggleTask: { model.toggleCardTask(id: card.id, at: $0) }
         )
-        let planned = CardEffort.plannedPomodoros(
-            estimatedHours: card.estimatedHours,
-            focusMinutes: focusMinutes
-        )
-        return Button {
-            edit(card)
-        } label: {
-            VStack(alignment: .leading, spacing: TempoSpacing.sm) {
-                Text(card.title)
-                    .font(.headline)
-                    .foregroundStyle(TempoColor.label)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                if !card.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    MarkdownPreview(source: card.notes, lineLimit: 4, compact: true)
-                }
-                CardEffortMeter(
-                    actualHours: card.actualHours,
-                    estimatedHours: card.estimatedHours,
-                    donePomodoros: done,
-                    plannedPomodoros: planned
-                )
-                let tags = TagParser.tags(in: card.title + " " + card.notes)
-                if !tags.isEmpty {
-                    Text(tags.joined(separator: " "))
-                        .font(.caption)
-                        .foregroundStyle(TempoColor.info)
-                        .lineLimit(2)
-                }
-            }
-            .padding(TempoSpacing.md)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background {
-                RoundedRectangle(cornerRadius: TempoRadius.control, style: .continuous)
-                    .fill(.quaternary.opacity(0.28))
-            }
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
-        .contextMenu {
-            Button("Edit") { edit(card) }
-            Button("Delete", role: .destructive) { requestDelete(card) }
-        }
-        .accessibilityLabel(Text(card.title))
-        .accessibilityValue(Text("\(done) / \(planned), \(TempoFormat.spoken(card.actualHours * 3600))"))
-        .accessibilityHint(Text("Shows the card."))
     }
 
     @ToolbarContentBuilder
@@ -579,6 +534,76 @@ private struct CardDragMouseUpInstaller: NSViewRepresentable {
     }
 }
 
+private struct BoardCardRow: View {
+    var card: CardRecord
+    var focusMinutes: Int
+    var onEdit: () -> Void
+    var onDelete: () -> Void
+    var onToggleTask: (Int) -> Void
+    @State private var suppressEdit = false
+
+    var body: some View {
+        let done = CardEffort.donePomodoros(
+            sessionIDsJSON: card.sessionIDsJSON,
+            actualHours: card.actualHours,
+            focusMinutes: focusMinutes
+        )
+        let planned = CardEffort.plannedPomodoros(
+            estimatedHours: card.estimatedHours,
+            focusMinutes: focusMinutes
+        )
+        Button {
+            guard !suppressEdit else {
+                suppressEdit = false
+                return
+            }
+            onEdit()
+        } label: {
+            VStack(alignment: .leading, spacing: TempoSpacing.sm) {
+                Text(card.title)
+                    .font(.headline)
+                    .foregroundStyle(TempoColor.label)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !card.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    MarkdownPreview(source: card.notes, lineLimit: 4, compact: true) { index in
+                        suppressEdit = true
+                        onToggleTask(index)
+                    }
+                }
+                CardEffortMeter(
+                    actualHours: card.actualHours,
+                    estimatedHours: card.estimatedHours,
+                    donePomodoros: done,
+                    plannedPomodoros: planned
+                )
+                let tags = TagParser.tags(in: card.title + " " + card.notes)
+                if !tags.isEmpty {
+                    Text(tags.joined(separator: " "))
+                        .font(.caption)
+                        .foregroundStyle(TempoColor.info)
+                        .lineLimit(2)
+                }
+            }
+            .padding(TempoSpacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: TempoRadius.control, style: .continuous)
+                    .fill(.quaternary.opacity(0.28))
+            }
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button("Edit") { onEdit() }
+            Button("Delete", role: .destructive, action: onDelete)
+        }
+        .accessibilityLabel(Text(card.title))
+        .accessibilityValue(Text("\(done) / \(planned), \(TempoFormat.spoken(card.actualHours * 3600))"))
+        .accessibilityHint(Text("Shows the card."))
+    }
+}
+
 struct CardEditor: View {
     @Bindable var model: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -638,7 +663,9 @@ struct CardEditor: View {
                             .foregroundStyle(TempoColor.tertiary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
-                        MarkdownPreview(source: notes)
+                        MarkdownPreview(source: notes) { index in
+                            notes = MarkdownTasks.toggle(in: notes, at: index)
+                        }
                     }
                 }
                 .frame(minHeight: 180)

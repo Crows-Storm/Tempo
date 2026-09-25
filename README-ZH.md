@@ -122,7 +122,7 @@ chmod +x scripts/make-dmg.sh
 ./scripts/make-dmg.sh
 ```
 
-成品在 `build/dmg/Tempo-1.0.0.dmg`（版本号跟随 `CFBundleShortVersionString`）。双击打开：左边是 **Tempo**，右边是 **Applications**。把应用拖进文件夹，再推出磁盘。
+成品在 `build/dmg/Tempo-<version>.dmg`（版本号跟随 `CFBundleShortVersionString`，当前为 1.0.4）。双击打开：左边是 **Tempo**，右边是 **Applications**。把应用拖进文件夹，再推出磁盘。
 
 当前是 **ad-hoc 签名**（`CODE_SIGN_IDENTITY = "-"`）。磁盘映像里**没有** Apple 开发者姓名、Team ID、Apple ID。别人打开时会出现「无法验证开发者」，在应用上右键选「打开」即可。
 

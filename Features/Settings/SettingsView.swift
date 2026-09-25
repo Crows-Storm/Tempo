@@ -160,6 +160,41 @@ private extension View {
     }
 }
 
+private struct PermissionStatusRow: View {
+    var title: LocalizedStringKey
+    var detail: LocalizedStringKey
+    var isOn: Bool
+    var asked: Bool
+    var onEnable: () -> Void
+    var onOpenSettings: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: TempoSpacing.xxs) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                Spacer(minLength: TempoSpacing.sm)
+                Label(isOn ? "On" : "Off", systemImage: isOn ? "checkmark.circle.fill" : "xmark.circle")
+                    .foregroundStyle(isOn ? Color(nsColor: .systemGreen) : TempoColor.secondary)
+                    .symbolRenderingMode(.hierarchical)
+                    .fixedSize()
+                    .accessibilityLabel(Text(isOn ? "On" : "Off"))
+            }
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button(isOn || asked ? "Open System Settings" : "Enable") {
+                if isOn || asked {
+                    onOpenSettings()
+                } else {
+                    onEnable()
+                }
+            }
+            .controlSize(.small)
+        }
+    }
+}
+
 private struct GeneralPane: View {
     @Bindable var model: AppModel
     @State private var launch = SMLaunch.current
@@ -213,6 +248,7 @@ private enum SMLaunch {
 private struct FocusPane: View {
     @Bindable var model: AppModel
     @State private var accessibilityOn = false
+    @State private var screenCaptureOn = false
 
     var body: some View {
         Form {
@@ -227,24 +263,41 @@ private struct FocusPane: View {
                     showsMinutes: false
                 )
             }
+            Section("Permissions") {
+                PermissionStatusRow(
+                    title: "Accessibility",
+                    detail: "Reads the front window title. System Settings lists this as Accessibility under Privacy & Security.",
+                    isOn: accessibilityOn,
+                    asked: PermissionAsk.didAskForCurrentBinary(
+                        didAsk: model.settings.askedAccessibility,
+                        storedPath: model.settings.accessibilityBinaryPath,
+                        currentPath: Bundle.main.bundlePath
+                    ),
+                    onEnable: { model.enableAccessibilityFromSettings() },
+                    onOpenSettings: { FrontmostProbe.openAccessibilitySettings() }
+                )
+                PermissionStatusRow(
+                    title: "Screen Recording",
+                    detail: "Needed when an app does not expose its title through Accessibility. Tempo never saves the screen.",
+                    isOn: screenCaptureOn,
+                    asked: PermissionAsk.didAskForCurrentBinary(
+                        didAsk: model.settings.askedScreenRecording,
+                        storedPath: model.settings.accessibilityBinaryPath,
+                        currentPath: Bundle.main.bundlePath
+                    ),
+                    onEnable: { model.enableScreenRecordingFromSettings() },
+                    onOpenSettings: { FrontmostProbe.openScreenCaptureSettings() }
+                )
+                Text("Tempo does not need Input Monitoring, Full Disk Access, camera, or microphone.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Activity") {
                 LabeledContent("Sample interval") {
                     Stepper(value: $model.settings.monitorInterval, in: 1...60, step: 1) {
                         Text(Duration.seconds(model.settings.monitorInterval).formatted(.units(allowed: [.seconds], width: .wide)))
                     }
                 }
-                LabeledContent("Window titles") {
-                    if accessibilityOn {
-                        Text("On")
-                    } else {
-                        Button(model.settings.askedAccessibility ? "Open System Settings" : "Enable") {
-                            model.enableAccessibilityFromSettings()
-                        }
-                    }
-                }
-                Text("App names still record without this. Window titles need Accessibility. Tempo asks once when you start a focus; after a refusal, use this button.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Toggle("Suggest a board when a focus ends without one", isOn: $model.settings.suggestBoard)
                     .toggleStyle(.switch)
             }
@@ -275,10 +328,15 @@ private struct FocusPane: View {
             }
         }
         .settingsPaneChrome()
-        .task { accessibilityOn = FrontmostProbe.isTrusted }
+        .task { refreshPermissions() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            accessibilityOn = FrontmostProbe.isTrusted
+            refreshPermissions()
         }
+    }
+
+    private func refreshPermissions() {
+        accessibilityOn = FrontmostProbe.isTrusted
+        screenCaptureOn = FrontmostProbe.isScreenCaptureTrusted
     }
 
     private func durationSlider(
@@ -386,18 +444,18 @@ private struct NotificationsPane: View {
     var body: some View {
         Form {
             Section("Notifications") {
+                PermissionStatusRow(
+                    title: "Notifications",
+                    detail: "Alerts when a focus or break ends.",
+                    isOn: granted,
+                    asked: model.settings.askedNotifications,
+                    onEnable: { model.enableNotificationsFromSettings() },
+                    onOpenSettings: { SessionNotifier.openSystemSettings() }
+                )
                 Toggle("Notify when a session ends", isOn: $model.settings.notificationsEnabled)
                     .toggleStyle(.switch)
                 Toggle("Play a sound when a session ends", isOn: $model.settings.soundEnabled)
                     .toggleStyle(.switch)
-                if model.settings.notificationsEnabled, !granted {
-                    Button(model.settings.askedNotifications ? "Open System Settings" : "Enable") {
-                        model.enableNotificationsFromSettings()
-                    }
-                    Text("Tempo asks once when a session ends. After a refusal, use this button to open System Settings.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
         .settingsPaneChrome()

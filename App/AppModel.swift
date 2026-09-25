@@ -101,6 +101,9 @@ final class AppModel {
         startClockWatch()
         if clock.phase == .focus, clock.runState == .running {
             askAccessibilityIfNeeded()
+            if FrontmostProbe.isTrusted {
+                askScreenRecordingIfNeeded()
+            }
             startSampling()
         }
     }
@@ -146,17 +149,48 @@ final class AppModel {
         if clock.phase == .focus, clock.runState == .running {
             section = .focus
             askAccessibilityIfNeeded()
+            if FrontmostProbe.isTrusted {
+                askScreenRecordingIfNeeded()
+            }
             startSampling()
         }
     }
 
     func enableAccessibilityFromSettings() {
-        if FrontmostProbe.isTrusted { return }
-        switch PermissionAsk.settingsAction(didAsk: settings.askedAccessibility, isGranted: false) {
+        if FrontmostProbe.isTrusted {
+            FrontmostProbe.openAccessibilitySettings()
+            return
+        }
+        let didAsk = PermissionAsk.didAskForCurrentBinary(
+            didAsk: settings.askedAccessibility,
+            storedPath: settings.accessibilityBinaryPath,
+            currentPath: Bundle.main.bundlePath
+        )
+        switch PermissionAsk.settingsAction(didAsk: didAsk, isGranted: false) {
         case .askSystem:
             askAccessibilityIfNeeded()
         case .openSystemSettings:
             FrontmostProbe.openAccessibilitySettings()
+        case .none:
+            break
+        }
+    }
+
+    func enableScreenRecordingFromSettings() {
+        if FrontmostProbe.isScreenCaptureTrusted {
+            FrontmostProbe.openScreenCaptureSettings()
+            return
+        }
+        let didAsk = PermissionAsk.didAskForCurrentBinary(
+            didAsk: settings.askedScreenRecording,
+            storedPath: settings.accessibilityBinaryPath,
+            currentPath: Bundle.main.bundlePath
+        )
+        switch PermissionAsk.settingsAction(didAsk: didAsk, isGranted: false) {
+        case .askSystem:
+            askScreenRecordingIfNeeded()
+        case .openSystemSettings:
+            FrontmostProbe.openScreenCaptureSettings()
         case .none:
             break
         }
@@ -186,12 +220,53 @@ final class AppModel {
 
     private func askAccessibilityIfNeeded() {
         let granted = FrontmostProbe.isTrusted
-        guard PermissionAsk.shouldShowSystemPrompt(didAsk: settings.askedAccessibility, isGranted: granted) else {
+        let path = Bundle.main.bundlePath
+        if granted {
+            if settings.accessibilityBinaryPath != path {
+                var next = settings
+                next.accessibilityBinaryPath = path
+                settings = next
+            }
+            return
+        }
+        let didAsk = PermissionAsk.didAskForCurrentBinary(
+            didAsk: settings.askedAccessibility,
+            storedPath: settings.accessibilityBinaryPath,
+            currentPath: path
+        )
+        guard PermissionAsk.shouldShowSystemPrompt(didAsk: didAsk, isGranted: false) else {
             return
         }
         var next = settings
         next.askedAccessibility = true
+        next.accessibilityBinaryPath = path
         _ = FrontmostProbe.promptTrust()
+        settings = next
+    }
+
+    private func askScreenRecordingIfNeeded() {
+        let granted = FrontmostProbe.isScreenCaptureTrusted
+        let path = Bundle.main.bundlePath
+        if granted {
+            if settings.accessibilityBinaryPath != path {
+                var next = settings
+                next.accessibilityBinaryPath = path
+                settings = next
+            }
+            return
+        }
+        let didAsk = PermissionAsk.didAskForCurrentBinary(
+            didAsk: settings.askedScreenRecording,
+            storedPath: settings.accessibilityBinaryPath,
+            currentPath: path
+        )
+        guard PermissionAsk.shouldShowSystemPrompt(didAsk: didAsk, isGranted: false) else {
+            return
+        }
+        var next = settings
+        next.askedScreenRecording = true
+        next.accessibilityBinaryPath = path
+        _ = FrontmostProbe.promptScreenCapture()
         settings = next
     }
 
@@ -373,6 +448,18 @@ final class AppModel {
         }
         saveContext()
         cardDraft = nil
+    }
+
+    func toggleCardTask(id: String, at index: Int) {
+        guard let card = fetchCard(id) else { return }
+        let next = MarkdownTasks.toggle(in: card.notes, at: index)
+        guard next != card.notes else { return }
+        card.notes = next
+        do {
+            try container.mainContext.save()
+        } catch {
+            statusMessage = error.localizedDescription
+        }
     }
 
     func deleteCard(_ id: String) {

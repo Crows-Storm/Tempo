@@ -3,6 +3,9 @@ import SwiftUI
 struct OverviewView: View {
     @Bindable var model: AppModel
     @State private var snapshot = StatisticsSnapshot.empty
+    @State private var todayIntervals: [FocusInterval] = []
+    @State private var todayLength: TimeInterval = 0
+    @State private var todaySankey = SankeyDiagram.empty
 
     var body: some View {
         ScrollView {
@@ -10,7 +13,7 @@ struct OverviewView: View {
                 nowAndToday
                 nextWork
                 boards
-                recent
+                todayFocus
             }
             .padding(TempoSpacing.lg)
             .frame(maxWidth: 1080, alignment: .leading)
@@ -18,6 +21,7 @@ struct OverviewView: View {
         .navigationTitle("Overview")
         .tempoSearchable(text: $model.searchText, nonce: model.searchFocusNonce)
         .task(id: model.revision) { reload() }
+        .task(id: todayLoadKey) { await loadTodayFocus() }
     }
 
     private func reload() {
@@ -192,41 +196,86 @@ struct OverviewView: View {
         }
     }
 
-    private var recent: some View {
-        let sessions = Array(model.facts().prefix(5))
-        return VStack(alignment: .leading, spacing: TempoSpacing.sm) {
-            Text("Recent")
+    private var todayFocus: some View {
+        VStack(alignment: .leading, spacing: TempoSpacing.sm) {
+            Text("Today's focus")
                 .font(.headline)
-            if sessions.isEmpty {
+            if todaySessions.isEmpty {
                 Text("What you focus on shows up here.")
                     .foregroundStyle(TempoColor.secondary)
             } else {
-                ForEach(sessions) { session in
-                    Button {
-                        model.selectedSessionID = session.id
-                        model.historyDay = Calendar.current.startOfDay(for: session.start)
-                        model.section = .history
-                    } label: {
-                        HStack {
-                            Text(session.start.formatted(date: .abbreviated, time: .shortened))
-                            if let name = boardName(session.boardID) {
-                                Text(name)
-                                    .foregroundStyle(TempoColor.secondary)
-                            }
-                            Spacer(minLength: 0)
-                            Text(TempoFormat.minutesValue(session.seconds))
-                                .foregroundStyle(TempoColor.secondary)
-                                .monospacedDigit()
-                        }
-                        .font(.callout)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text(session.start.formatted(date: .abbreviated, time: .shortened)))
-                    .accessibilityValue(Text(TempoFormat.spoken(session.seconds)))
+                VStack(alignment: .leading, spacing: TempoSpacing.xs) {
+                    PomodoroLaneChart(
+                        intervals: todayIntervals,
+                        length: max(1, todayLength),
+                        height: 52,
+                        showsAxis: true,
+                        accessibilityTitle: "Today's focus"
+                    )
+                    todayLegend
                 }
+                SessionSankey(diagram: todaySankey)
             }
         }
+    }
+
+    private var todayLegend: some View {
+        let apps = Dictionary(grouping: todayIntervals, by: \.app)
+            .map { AppSlice(name: $0.key, seconds: $0.value.reduce(0) { $0 + $1.duration }) }
+            .sorted { $0.seconds > $1.seconds }
+        return LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 88), spacing: TempoSpacing.md, alignment: .leading)],
+            alignment: .leading,
+            spacing: TempoSpacing.xs
+        ) {
+            ForEach(apps.prefix(6)) { app in
+                HStack(spacing: 6) {
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(TempoColor.app(app.name))
+                        .frame(width: 10, height: 10)
+                    Text(app.name)
+                        .lineLimit(1)
+                }
+                .font(.caption)
+                .foregroundStyle(TempoColor.secondary)
+            }
+        }
+    }
+
+    private var todaySessions: [SessionFact] {
+        model.facts()
+            .filter { Calendar.current.isDateInToday($0.start) }
+            .sorted { $0.start < $1.start }
+    }
+
+    private var todayLoadKey: String {
+        todaySessions.map(\.id).joined(separator: ",") + "-\(model.revision)"
+    }
+
+    private func loadTodayFocus() async {
+        let sessions = todaySessions
+        let rules = model.settings.distractionRules
+        let fallback = model.settings.monitorInterval
+        var parts: [(session: SessionFact, intervals: [FocusInterval])] = []
+        var samples: [ActivitySample] = []
+        for session in sessions {
+            let captured = (try? await model.activity.samples(sessionID: session.id)) ?? []
+            samples.append(contentsOf: captured)
+            parts.append((
+                session,
+                FocusLane.make(
+                    samples: captured,
+                    session: session,
+                    rules: rules,
+                    fallback: fallback
+                )
+            ))
+        }
+        let combined = FocusLane.concatenate(parts)
+        todayIntervals = combined.intervals
+        todayLength = combined.length
+        let fromSamples = SankeyFlow.make(samples: samples, rules: rules, fallbackInterval: fallback)
+        todaySankey = fromSamples.nodes.isEmpty ? SankeyFlow.make(intervals: combined.intervals) : fromSamples
     }
 
     private var cardBackground: some View {
@@ -252,11 +301,6 @@ struct OverviewView: View {
     private func open(_ board: BoardOverview) {
         model.selectedBoardID = board.id
         model.section = .tasks
-    }
-
-    private func boardName(_ id: String?) -> String? {
-        guard let id else { return nil }
-        return model.fetchBoard(id)?.name
     }
 
     private var todayMinutes: Int {

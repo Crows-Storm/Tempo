@@ -38,22 +38,26 @@ enum SankeyFlow {
         var titleToFocus: [String: Double] = [:]
         var titleToDistract: [String: Double] = [:]
 
-        let sorted = samples.sorted { $0.capturedAt < $1.capturedAt }
+        let sorted = samples
+            .filter { !SystemChrome.isIgnored(appName: $0.appName, bundleID: $0.bundleID) }
+            .sorted { $0.capturedAt < $1.capturedAt }
         for (index, sample) in sorted.enumerated() {
             let next = index + 1 < sorted.count ? sorted[index + 1].capturedAt : nil
             let seconds = next.map { max(0.5, $0.timeIntervalSince(sample.capturedAt)) } ?? fallbackInterval
             let app = sample.appName.isEmpty ? String(localized: "Unknown") : sample.appName
             let title = sample.windowTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-            let titleLabel = title.isEmpty ? String(localized: "No window title") : title
             let distracted = rules.contains { $0.matches(appName: sample.appName, title: sample.windowTitle) }
             appSeconds[app, default: 0] += seconds
-            titleSeconds[titleLabel, default: 0] += seconds
-            appToTitle["\(app)\u{1f}\(titleLabel)", default: 0] += seconds
-            if distracted {
-                titleToDistract[titleLabel, default: 0] += seconds
-            } else {
-                titleToFocus[titleLabel, default: 0] += seconds
-            }
+            accumulate(
+                app: app,
+                title: title,
+                seconds: seconds,
+                distracted: distracted,
+                titleSeconds: &titleSeconds,
+                appToTitle: &appToTitle,
+                titleToFocus: &titleToFocus,
+                titleToDistract: &titleToDistract
+            )
         }
 
         return assemble(
@@ -72,18 +76,20 @@ enum SankeyFlow {
         var appToTitle: [String: Double] = [:]
         var titleToFocus: [String: Double] = [:]
         var titleToDistract: [String: Double] = [:]
-        for interval in intervals {
+        for interval in intervals where !SystemChrome.isIgnored(appName: interval.app) {
             let app = interval.app.isEmpty ? String(localized: "Unknown") : interval.app
             let title = interval.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            let titleLabel = title.isEmpty ? String(localized: "No window title") : title
             appSeconds[app, default: 0] += interval.duration
-            titleSeconds[titleLabel, default: 0] += interval.duration
-            appToTitle["\(app)\u{1f}\(titleLabel)", default: 0] += interval.duration
-            if interval.distracted {
-                titleToDistract[titleLabel, default: 0] += interval.duration
-            } else {
-                titleToFocus[titleLabel, default: 0] += interval.duration
-            }
+            accumulate(
+                app: app,
+                title: title,
+                seconds: interval.duration,
+                distracted: interval.distracted,
+                titleSeconds: &titleSeconds,
+                appToTitle: &appToTitle,
+                titleToFocus: &titleToFocus,
+                titleToDistract: &titleToDistract
+            )
         }
         return assemble(
             appSeconds: appSeconds,
@@ -132,6 +138,26 @@ enum SankeyFlow {
             },
             links: Array(merged.values).filter { $0.seconds > 0 }
         )
+    }
+
+    private static func accumulate(
+        app: String,
+        title: String,
+        seconds: Double,
+        distracted: Bool,
+        titleSeconds: inout [String: Double],
+        appToTitle: inout [String: Double],
+        titleToFocus: inout [String: Double],
+        titleToDistract: inout [String: Double]
+    ) {
+        let resolved = title.isEmpty ? String(localized: "Untitled") : title
+        titleSeconds[resolved, default: 0] += seconds
+        appToTitle["\(app)\u{1f}\(resolved)", default: 0] += seconds
+        if distracted {
+            titleToDistract[resolved, default: 0] += seconds
+        } else {
+            titleToFocus[resolved, default: 0] += seconds
+        }
     }
 
     private static func assemble(

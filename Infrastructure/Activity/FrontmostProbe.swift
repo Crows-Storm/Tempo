@@ -27,9 +27,31 @@ enum FrontmostProbe {
     static func capture() -> Snapshot? {
         guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
         if app.bundleIdentifier == Bundle.main.bundleIdentifier { return nil }
+        if SystemChrome.isIgnored(appName: app.localizedName ?? "", bundleID: app.bundleIdentifier ?? "") {
+            return nil
+        }
         let name = app.localizedName ?? "App"
         let title = readTitle(pid: app.processIdentifier)
         return Snapshot(appName: name, bundleID: app.bundleIdentifier ?? "", windowTitle: title)
+    }
+
+    static var isScreenCaptureTrusted: Bool {
+        CGPreflightScreenCaptureAccess()
+    }
+
+    @discardableResult
+    static func promptScreenCapture() -> Bool {
+        CGRequestScreenCaptureAccess()
+    }
+
+    static func openScreenCaptureSettings() {
+        let candidates = [
+            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_ScreenCapture",
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+        ]
+        for raw in candidates {
+            if let url = URL(string: raw), NSWorkspace.shared.open(url) { return }
+        }
     }
 
     static func openAccessibilitySettings() {
@@ -74,12 +96,14 @@ enum FrontmostProbe {
         AXUIElementSetMessagingTimeout(application, 0.25)
         if let window = copyElement(application, kAXFocusedWindowAttribute as String) {
             if let title = nonempty(copyString(window, kAXTitleAttribute as String)) { return title }
+            if let title = nonempty(copyString(window, kAXDescriptionAttribute as String)) { return title }
             if let document = nonempty(WindowTitle.documentName(copyString(window, kAXDocumentAttribute as String))) {
                 return document
             }
         }
         for window in copyElements(application, kAXWindowsAttribute as String) {
             if let title = nonempty(copyString(window, kAXTitleAttribute as String)) { return title }
+            if let title = nonempty(copyString(window, kAXDescriptionAttribute as String)) { return title }
         }
         if let focused = copyElement(application, kAXFocusedUIElementAttribute as String) {
             var node: AXUIElement? = focused
@@ -96,7 +120,12 @@ enum FrontmostProbe {
     }
 
     private static func cgTitle(pid: pid_t) -> String {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        let onScreen = titleFromList([.optionOnScreenOnly, .excludeDesktopElements], pid: pid)
+        if !onScreen.isEmpty { return onScreen }
+        return titleFromList([.excludeDesktopElements], pid: pid)
+    }
+
+    private static func titleFromList(_ options: CGWindowListOption, pid: pid_t) -> String {
         guard let info = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return ""
         }

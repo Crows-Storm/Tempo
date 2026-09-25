@@ -30,6 +30,16 @@
         }
       }
     },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
     "%@ / %@" : {
       "localizations" : {
         "en" : {
@@ -172,6 +182,9 @@
         }
       }
     },
+    "Accessibility" : {
+
+    },
     "Activity" : {
       "localizations" : {
         "en" : {
@@ -241,6 +254,9 @@
     "Add to %@" : {
 
     },
+    "Alerts when a focus or break ends." : {
+
+    },
     "All Boards" : {
       "localizations" : {
         "en" : {
@@ -284,9 +300,6 @@
           }
         }
       }
-    },
-    "App names still record without this. Window titles need Accessibility. Tempo asks once when you start a focus; after a refusal, use this button." : {
-
     },
     "App names still record. Allow Accessibility, then quit Tempo once for window titles." : {
       "extractionState" : "stale",
@@ -1789,6 +1802,12 @@
         }
       }
     },
+    "Marks the item complete." : {
+
+    },
+    "Marks the item incomplete." : {
+
+    },
     "Mini Timer" : {
       "localizations" : {
         "en" : {
@@ -1835,6 +1854,9 @@
           }
         }
       }
+    },
+    "Needed when an app does not expose its title through Accessibility. Tempo never saves the screen." : {
+
     },
     "New Board" : {
       "localizations" : {
@@ -2092,6 +2114,7 @@
 
     },
     "No window title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2136,7 +2159,6 @@
       }
     },
     "No window titles. Allow Accessibility in Settings to record the front window." : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2268,6 +2290,9 @@
           }
         }
       }
+    },
+    "Off" : {
+
     },
     "OK" : {
       "localizations" : {
@@ -2455,6 +2480,9 @@
         }
       }
     },
+    "Permissions" : {
+
+    },
     "Personal" : {
       "localizations" : {
         "en" : {
@@ -2615,6 +2643,9 @@
         }
       }
     },
+    "Reads the front window title. System Settings lists this as Accessibility under Privacy & Security." : {
+
+    },
     "Ready" : {
       "localizations" : {
         "en" : {
@@ -2638,6 +2669,7 @@
       }
     },
     "Recent" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2794,6 +2826,9 @@
       }
     },
     "Save this session" : {
+
+    },
+    "Screen Recording" : {
 
     },
     "Search" : {
@@ -3286,9 +3321,6 @@
         }
       }
     },
-    "Tempo asks once when a session ends. After a refusal, use this button to open System Settings." : {
-
-    },
     "Tempo could not open its library. This session is temporary." : {
       "localizations" : {
         "en" : {
@@ -3310,6 +3342,9 @@
           }
         }
       }
+    },
+    "Tempo does not need Input Monitoring, Full Disk Access, camera, or microphone." : {
+
     },
     "Tempo is a focus timer, a task board, and a private history of your work." : {
       "localizations" : {
@@ -3556,6 +3591,9 @@
         }
       }
     },
+    "Today's focus" : {
+
+    },
     "Total" : {
 
     },
@@ -3586,6 +3624,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "取消置顶"
+          }
+        }
+      }
+    },
+    "Untitled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Untitled"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無題"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无标题"
           }
         }
       }
@@ -3671,6 +3731,7 @@
 
     },
     "Window titles" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

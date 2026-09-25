@@ -8,7 +8,14 @@
         {
           "hidden" : false,
           "image-name" : "Tempo-icon.png",
-          "name" : "Tempo"
+          "name" : "Tempo",
+          "position" : {
+            "scale" : 1.2,
+            "translation-in-points" : [
+              -1.1368683772161603e-13,
+              47
+            ]
+          }
         }
       ],
       "shadow" : {
@@ -22,9 +29,6 @@
     }
   ],
   "supported-platforms" : {
-    "circles" : [
-
-    ],
     "squares" : [
       "macOS"
     ]
